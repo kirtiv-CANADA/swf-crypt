@@ -13,21 +13,21 @@ jobs:
 
       # Steps are skipped until the backend solution exists.
       - uses: actions/setup-dotnet@v4
-        if: ${{ hashFiles('backend/SwfCrypt.sln') != '' }}
+        if: ${{ hashFiles('backend/SwfCrypt.slnx') != '' }}
         with:
           global-json-file: backend/global.json
 
       - name: Restore
-        if: ${{ hashFiles('backend/SwfCrypt.sln') != '' }}
-        run: dotnet restore backend/SwfCrypt.sln
+        if: ${{ hashFiles('backend/SwfCrypt.slnx') != '' }}
+        run: dotnet restore backend/SwfCrypt.slnx
 
       - name: Build
-        if: ${{ hashFiles('backend/SwfCrypt.sln') != '' }}
-        run: dotnet build backend/SwfCrypt.sln --no-restore -c Release
+        if: ${{ hashFiles('backend/SwfCrypt.slnx') != '' }}
+        run: dotnet build backend/SwfCrypt.slnx --no-restore -c Release
 
       - name: Test
-        if: ${{ hashFiles('backend/SwfCrypt.sln') != '' }}
-        run: dotnet test backend/SwfCrypt.sln --no-build -c Release
+        if: ${{ hashFiles('backend/SwfCrypt.slnx') != '' }}
+        run: dotnet test backend/SwfCrypt.slnx --no-build -c Release
 
   frontend:
     runs-on: ubuntu-latest
