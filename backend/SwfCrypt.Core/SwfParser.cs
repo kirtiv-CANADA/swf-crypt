@@ -172,7 +172,6 @@ public static class SwfParser
                 ActionScriptKind: scriptKind,
                 FrameRate: frameRate,
                 FrameCount: frameCount,
-                FrameCount: frameCount,
                 TotalTagCount: tagCount,
                 Warnings: warnings);
 
