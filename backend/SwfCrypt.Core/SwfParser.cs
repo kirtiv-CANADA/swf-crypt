@@ -94,6 +94,7 @@ public static class SwfParser
             }
 
             ushort rawFrameRate = BinaryPrimitives.ReadUInt16LittleEndian(bodyBytes.AsSpan(rectOffset, 2));
+            ushort frameCount = BinaryPrimitives.ReadUInt16LittleEndian(bodyBytes.AsSpan(rectOffset + 2, 2));
             double frameRate = rawFrameRate / 256.0;
             int offset = rectOffset + 4;
 
@@ -170,6 +171,8 @@ public static class SwfParser
                 Compression: compression,
                 ActionScriptKind: scriptKind,
                 FrameRate: frameRate,
+                FrameCount: frameCount,
+                FrameCount: frameCount,
                 TotalTagCount: tagCount,
                 Warnings: warnings);
 
