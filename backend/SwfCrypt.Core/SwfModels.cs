@@ -36,3 +36,14 @@ public sealed record SwfParseResult(
     public static SwfParseResult Fail(string errorCode, string errorMessage) =>
         new(false, null, errorCode, errorMessage);
 }
+public readonly record struct SwfRect(
+    int XMin,
+    int XMax,
+    int YMin,
+    int YMax)
+{
+    public int WidthTwips => XMax - XMin;
+    public int HeightTwips => YMax - YMin;
+    public double WidthPixels => WidthTwips / 20.0;
+    public double HeightPixels => HeightTwips / 20.0;
+}
