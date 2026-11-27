@@ -1,4 +1,4 @@
-using System.Buffers.Binary;
+﻿using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Text;
 
@@ -168,7 +168,7 @@ public static class SwfParser
             var autopsy = new SwfAutopsy(
                 Version: version,
                 Compression: compression,
-                ActionScript: scriptKind,
+                ActionScriptKind: scriptKind,
                 FrameRate: frameRate,
                 TotalTagCount: tagCount,
                 Warnings: warnings);

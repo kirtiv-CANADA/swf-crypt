@@ -1,41 +1,52 @@
-namespace SwfCrypt.Core;
+﻿namespace SwfCrypt.Core;
 
 public enum ActionScriptKind
 {
     None,
-    AS1,
-    AS2,
-    AS3,
-    Mixed
+    ActionScript1,
+    ActionScript2,
+    ActionScript3,
+    Mixed,
+    AS1 = ActionScript1,
+    AS2 = ActionScript2,
+    AS3 = ActionScript3
 }
 
 public enum SwfCompression
 {
-    None,
+    Uncompressed,
     Zlib,
-    Lzma
+    Lzma,
+    None = Uncompressed
 }
 
 public sealed record SwfAutopsy(
     byte Version,
     SwfCompression Compression,
-    ActionScriptKind ActionScript,
     double FrameRate = 0,
+    ushort FrameCount = 0,
+    ActionScriptKind ActionScriptKind = ActionScriptKind.None,
     int TotalTagCount = 0,
-    IReadOnlyList<string>? Warnings = null);
+    IReadOnlyList<string>? Warnings = null)
+{
+    public ActionScriptKind ActionScript => ActionScriptKind;
+}
 
 public sealed record SwfParseResult(
-    bool Success,
+    bool IsSuccess,
     SwfAutopsy? Autopsy = null,
     string? ErrorCode = null,
     string? ErrorMessage = null)
 {
+    public bool Success => IsSuccess;
+
     public static SwfParseResult Ok(SwfAutopsy autopsy) =>
         new(true, autopsy);
 
     public static SwfParseResult Fail(string errorCode, string errorMessage) =>
         new(false, null, errorCode, errorMessage);
 }
+
 public readonly record struct SwfRect(
     int XMin,
     int XMax,
