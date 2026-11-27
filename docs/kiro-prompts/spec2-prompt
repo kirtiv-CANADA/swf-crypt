@@ -1,0 +1,64 @@
+# Spec 2 Prompt (Paste into a Kiro SPEC Session)
+
+Create a spec for the SWF Crypt backend platform in `backend/SwfCrypt.Api` (ASP.NET Core, .NET 10, EF Core with SQLite). Follow the steering docs, especially `product.md` and `tech.md`.
+
+Cover these areas as separate requirement groups:
+
+## 1. Data Model and Migrations
+- Entities: `AppUser` (Identity), `SwfFile`, `AnalysisJob`, `AutopsyReport`, `ReviewDecision`, `AuditLog`.
+- `SwfFile.Sha256` is unique. Include indexes for list filtering.
+- Use EF Core migrations. Seed the roles `Member`, `Curator`, and `Admin`, and seed demo accounts from configuration only (never hard-code real passwords).
+
+## 2. Authentication and Authorization
+- ASP.NET Core Identity with `AddIdentityApiEndpoints` (bearer tokens) and roles.
+- Policy-based authorization: `MemberOrAbove`, `CuratorOrAbove`, `AdminOnly`.
+- Account lockout enabled. CORS limited to the configured frontend origin.
+
+## 3. Upload
+- `POST /api/files` (`multipart/form-data`): `title`, `author?`, `year?`, `source` (required), `license` (required), `file`.
+- Validate: size limit, SWF signature (`FWS`/`CWS`/`ZWS`), required fields.
+- Compute SHA-256. If the hash already exists, return the existing record idempotently and do not create a duplicate record.
+- Save the file to a configurable storage folder. Create `SwfFile` (`Pending`) and `AnalysisJob` (`Queued`) in one transaction, then enqueue the job.
+
+## 4. Background Analysis Worker
+- Bounded `Channel<T>` + `BackgroundService`. Use `IServiceScopeFactory` for scoped services.
+- Job states: `Queued`, `Running`, `Succeeded`, `Failed`. Track `Attempts`, `LastError`, `StartedAt`, and `FinishedAt`.
+- Retry transient failures with exponential backoff (max 3 attempts). Permanent failures (such as an invalid or unsupported SWF) fail immediately with no retry.
+- On startup, re-enqueue jobs left in `Queued` or `Running`.
+- The worker calls the `SwfCrypt.Core` parser and stores an `AutopsyReport` with a compatibility verdict.
+
+## 5. Public and Member Endpoints
+- `GET /api/files` (public, approved only): `page`, `pageSize` (max 50), `q` (search), `actionScript`, `verdict`, `year`.
+- `GET /api/files/{id}`: public if approved; otherwise owner, `Curator`, or `Admin`.
+- `GET /api/files/{id}/content`: returns the SWF bytes using the same visibility rule.
+- `GET /api/me/files`: returns the caller's uploads along with job status.
+
+## 6. Curator and Admin Endpoints
+- `GET /api/review/pending`, `POST /api/review/{id}/approve`, `POST /api/review/{id}/reject` (note required).
+- `GET /api/admin/users`, `PUT /api/admin/users/{id}/role`, `GET /api/admin/audit` (paginated).
+- Every upload, review decision, and role change writes an `AuditLog` row.
+
+## 7. Cross-Cutting Concerns
+- `ProblemDetails` for all errors (never leak stack traces).
+- Rate limiting policies for login and upload endpoints.
+- `/health` endpoint.
+- OpenAPI document.
+- Structured logging with a correlation ID.
+- `Program` must remain `public partial class Program` so integration tests can host the API.
+
+## 8. Tests
+- Integration tests with `WebApplicationFactory` and SQLite in-memory: authorization matrix (`Visitor`, `Member`, `Curator`, `Admin` against each endpoint), duplicate upload idempotency, pagination and filtering, and review workflow.
+- Unit tests for the worker with a fake analyzer: success, transient failure followed by success, permanent failure, and startup restart recovery.
+
+Order the tasks so the first milestone is: **register -> login -> upload -> job runs -> report stored**.
+
+---
+
+## Packages to Add Before Running the Spec
+
+Run from the `backend` folder in PowerShell:
+
+```powershell
+dotnet add SwfCrypt.Api package Microsoft.AspNetCore.Identity.EntityFrameworkCore --version "10.*"
+dotnet add SwfCrypt.Tests package Microsoft.AspNetCore.Mvc.Testing --version "10.*"
+dotnet tool install --global dotnet-ef --version "10.*"

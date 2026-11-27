@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Steps are skipped until the backend solution exists.
+      - uses: actions/setup-dotnet@v4
+        if: ${{ hashFiles('backend/SwfCrypt.sln') != '' }}
+        with:
+          global-json-file: backend/global.json
+
+      - name: Restore
+        if: ${{ hashFiles('backend/SwfCrypt.sln') != '' }}
+        run: dotnet restore backend/SwfCrypt.sln
+
+      - name: Build
+        if: ${{ hashFiles('backend/SwfCrypt.sln') != '' }}
+        run: dotnet build backend/SwfCrypt.sln --no-restore -c Release
+
+      - name: Test
+        if: ${{ hashFiles('backend/SwfCrypt.sln') != '' }}
+        run: dotnet test backend/SwfCrypt.sln --no-build -c Release
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Steps are skipped until the frontend exists.
+      - uses: actions/setup-node@v4
+        if: ${{ hashFiles('frontend/package.json') != '' }}
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        if: ${{ hashFiles('frontend/package.json') != '' }}
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build
+        if: ${{ hashFiles('frontend/package.json') != '' }}
+        working-directory: frontend
+        run: npm run build
+
+      - name: Test
+        if: ${{ hashFiles('frontend/package.json') != '' }}
+        working-directory: frontend
+        run: npx vitest run --passWithNoTests

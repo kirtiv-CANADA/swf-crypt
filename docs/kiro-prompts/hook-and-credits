@@ -1,0 +1,15 @@
+ Kiro Hook and Credits Form
+
+## Hook: Run Tests When C# Files Change
+
+Open the Kiro **Agent Hooks** panel (exact menu names may differ between Kiro versions) and create a hook with these settings:
+
+- **Name:** `Run backend tests on save`
+- **Trigger:** File saved
+- **File pattern:** `backend/**/*.cs`
+- **Action:** Run a command (or use the agent prompt below if only "ask the agent" is available)
+
+**Command:**
+
+```text
+dotnet test backend/SwfCrypt.slnx --nologo

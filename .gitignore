@@ -1,0 +1,31 @@
+# ---------------------------------------------------------------
+# IMPORTANT: never add ".kiro" or ".kiro/" to this file.
+# The hackathon rules require the /.kiro directory to be committed.
+# ---------------------------------------------------------------
+
+# .NET
+bin/
+obj/
+*.user
+*.db
+*.db-shm
+*.db-wal
+backend/uploads/
+TestResults/
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+coverage/
+
+# Env and secrets
+.env
+.env.*
+!.env.example
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vs/

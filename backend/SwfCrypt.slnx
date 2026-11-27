@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="SwfCrypt.Api/SwfCrypt.Api.csproj" />
+  <Project Path="SwfCrypt.Core/SwfCrypt.Core.csproj" />
+  <Project Path="SwfCrypt.Tests/SwfCrypt.Tests.csproj" />
+</Solution>
