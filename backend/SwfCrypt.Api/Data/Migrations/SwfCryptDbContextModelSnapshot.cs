@@ -152,17 +152,17 @@ namespace SwfCrypt.Api.Data.Migrations
                     b.Property<int>("Attempts")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("FinishedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("FinishedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("LastError")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("StartedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("StartedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("State")
                         .HasColumnType("INTEGER");
@@ -193,8 +193,8 @@ namespace SwfCrypt.Api.Data.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("DisplayName")
                         .HasColumnType("TEXT");
@@ -209,8 +209,8 @@ namespace SwfCrypt.Api.Data.Migrations
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("LockoutEnd")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("LockoutEnd")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
@@ -261,8 +261,8 @@ namespace SwfCrypt.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("DetailsJson")
                         .HasColumnType("TEXT");
@@ -299,8 +299,8 @@ namespace SwfCrypt.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("AnalyzedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("AnalyzedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Compression")
                         .IsRequired()
@@ -355,8 +355,8 @@ namespace SwfCrypt.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("DecidedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("DecidedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Decision")
                         .HasColumnType("INTEGER");
@@ -391,8 +391,8 @@ namespace SwfCrypt.Api.Data.Migrations
                         .HasMaxLength(160)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("License")
                         .IsRequired()

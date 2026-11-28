@@ -16,6 +16,31 @@ public class SwfCryptDbContext(DbContextOptions<SwfCryptDbContext> options)
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        if (Database.IsSqlite())
+        {
+            var dtoConverter = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTimeOffset, long>(
+                v => v.UtcTicks,
+                v => new DateTimeOffset(v, TimeSpan.Zero));
+
+            var nullableDtoConverter = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTimeOffset?, long?>(
+                v => v.HasValue ? v.Value.UtcTicks : null,
+                v => v.HasValue ? new DateTimeOffset(v.Value, TimeSpan.Zero) : null);
+
+            foreach (var entityType in builder.Model.GetEntityTypes())
+            {
+                foreach (var property in entityType.GetProperties())
+                {
+                    if (property.ClrType == typeof(DateTimeOffset))
+                    {
+                        property.SetValueConverter(dtoConverter);
+                    }
+                    else if (property.ClrType == typeof(DateTimeOffset?))
+                    {
+                        property.SetValueConverter(nullableDtoConverter);
+                    }
+                }
+            }
+        }
 
         builder.Entity<SwfFile>(entity =>
         {
@@ -80,3 +105,4 @@ public class SwfCryptDbContext(DbContextOptions<SwfCryptDbContext> options)
         });
     }
 }
+

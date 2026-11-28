@@ -1,41 +1,49 @@
+﻿using System.Security.Claims;
+using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using SwfCrypt.Api.Auth;
+using SwfCrypt.Api.Config;
+using SwfCrypt.Api.Data;
+using SwfCrypt.Api.Endpoints;
+using SwfCrypt.Api.Services;
+
 var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection("Storage"));
+builder.Services.Configure<AnalysisOptions>(builder.Configuration.GetSection("Analysis"));
+builder.Services.Configure<RateLimitSettings>(builder.Configuration.GetSection("RateLimit"));
+builder.Services.Configure<SeedOptions>(builder.Configuration.GetSection("Seed"));
+builder.Logging.AddSimpleConsole(options => { options.IncludeScopes = true; options.SingleLine = true; });
+var maxUploadBytes = builder.Configuration.GetValue<long?>("Storage:MaxUploadBytes") ?? 26_214_400;
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = maxUploadBytes + 1_048_576);
+builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = maxUploadBytes + 1_048_576);
+builder.Services.AddDbContext<SwfCryptDbContext>((sp, options) => options.UseSqlite(sp.GetRequiredService<IConfiguration>().GetConnectionString("Default")));
+builder.Services.AddIdentityApiEndpoints<AppUser>(options => { options.User.RequireUniqueEmail = true; options.Lockout.AllowedForNewUsers = true; options.Lockout.MaxFailedAccessAttempts = 5; options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5); }).AddRoles<IdentityRole<Guid>>().AddEntityFrameworkStores<SwfCryptDbContext>();
+builder.Services.AddAuthorizationBuilder().AddPolicy(Policies.MemberOrAbove, p => p.RequireAuthenticatedUser()).AddPolicy(Policies.CuratorOrAbove, p => p.RequireRole(Roles.Curator, Roles.Admin)).AddPolicy(Policies.AdminOnly, p => p.RequireRole(Roles.Admin));
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod().WithExposedHeaders("X-Correlation-ID")));
+builder.Services.AddRateLimiter(options => { options.RejectionStatusCode = StatusCodes.Status429TooManyRequests; options.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter("auth:" + ClientKey(ctx), _ => new FixedWindowRateLimiterOptions { PermitLimit = Math.Max(1, ctx.RequestServices.GetRequiredService<IOptions<RateLimitSettings>>().Value.AuthPerMinute), Window = TimeSpan.FromMinutes(1), QueueLimit = 0 })); options.AddPolicy("upload", ctx => RateLimitPartition.GetFixedWindowLimiter("upload:" + ClientKey(ctx), _ => new FixedWindowRateLimiterOptions { PermitLimit = Math.Max(1, ctx.RequestServices.GetRequiredService<IOptions<RateLimitSettings>>().Value.UploadPerMinute), Window = TimeSpan.FromMinutes(1), QueueLimit = 0 })); });
+builder.Services.AddProblemDetails(options => { options.CustomizeProblemDetails = context => { if (context.HttpContext.Items["CorrelationId"] is string correlationId) context.ProblemDetails.Extensions["correlationId"] = correlationId; }; });
 builder.Services.AddOpenApi();
-
+builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddSingleton<AnalysisQueue>();
+builder.Services.AddSingleton<SwfFileStore>();
+builder.Services.AddSingleton<ISwfAnalyzer, CoreSwfAnalyzer>();
+builder.Services.AddScoped<AnalysisProcessor>();
+builder.Services.AddHostedService<AnalysisWorker>();
 var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
-app.UseHttpsRedirection();
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
+await DbSeeder.SeedAsync(app.Services, app.Configuration);
+app.Use(async (context, next) => { var incoming = context.Request.Headers["X-Correlation-ID"].FirstOrDefault(); var correlationId = IsSafeCorrelationId(incoming) ? incoming! : Guid.NewGuid().ToString("N"); context.Items["CorrelationId"] = correlationId; context.Response.OnStarting(() => { context.Response.Headers["X-Correlation-ID"] = correlationId; return Task.CompletedTask; }); var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Request"); using (logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = correlationId })) { await next(); } });
+app.UseExceptionHandler(); app.UseStatusCodePages(); app.UseCors(); app.UseAuthentication(); app.UseAuthorization(); app.UseRateLimiter(); app.MapOpenApi();
+app.MapGet("/health", async (SwfCryptDbContext db, CancellationToken ct) => await db.Database.CanConnectAsync(ct) ? Results.Ok(new { status = "ok" }) : Results.Problem(title: "Database unavailable", statusCode: StatusCodes.Status503ServiceUnavailable)).WithTags("Health");
+app.MapGroup("/api/auth").WithTags("Auth").RequireRateLimiting("auth").MapIdentityApi<AppUser>();
+app.MapFileEndpoints(); app.MapReviewEndpoints(); app.MapAdminEndpoints();
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+static string ClientKey(HttpContext context) => context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+static bool IsSafeCorrelationId(string? value) => !string.IsNullOrEmpty(value) && value.Length <= 64 && value.All(c => char.IsAsciiLetterOrDigit(c) || c == '-');
+public partial class Program { }
+public sealed class ApiMarker { }
